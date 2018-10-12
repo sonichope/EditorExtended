@@ -20,6 +20,7 @@ public class CustomMemo : EditorWindow
     private string memoString;
     private string editString;
     private TextAsset editText;
+    private int fontSize;
 
     [MenuItem("SonicCustom/Memo")]
     public static void ShowWindow()
@@ -36,6 +37,9 @@ public class CustomMemo : EditorWindow
         isNetwork = Connect();
         instance = GetWindow<CustomMemo>();
         instance.minSize = new Vector2(600, 300);
+
+        //gitの初期化
+        GitCommand.Init();
     }
 
     public static bool Connect()
@@ -116,6 +120,12 @@ public class CustomMemo : EditorWindow
             rect = ChangeRect(220, 10, 100, 20);
             EditorGUI.LabelField(rect, editText.name, guiStyle);
         }
+
+        //フォントサイズ変更スライダー
+        rect.position = new Vector2(340, 10);
+        rect.size = new Vector2(200, 20);
+        fontSize = EditorGUI.IntSlider(rect,fontSize,12,62);
+        guiStyle.fontSize = fontSize;
         
         //テキストエリア表示
         rect = ChangeRect(210, 30, size.x - (10 + 210), size.y - (20 + 30));
@@ -127,7 +137,7 @@ public class CustomMemo : EditorWindow
         //プッシュボタンまたは接続ボタン
         Vector2 position = new Vector2(size.x - 90,5);
         rect = ChangeRect(position, new Vector2(80,20));
-        if (isNetwork == true)
+        if (isNetwork == true && editText != null)
         {
             if (GUI.Button(rect, "プッシュ"))
             {
@@ -136,7 +146,7 @@ public class CustomMemo : EditorWindow
                 Push();
             }
         }
-        else
+        else if(editText != null)
         {
             if (GUI.Button(rect, "接続"))
             {
@@ -234,10 +244,29 @@ public class CustomMemo : EditorWindow
 
     private bool Push()
     {
-        string repPath = Application.dataPath;
-        string[] split = new string[1] { "Assets" };
-        repPath = repPath.Split(split, StringSplitOptions.None)[0];
-        Debug.Log(repPath);
+        //git初期化確認
+        if(GitCommand.IsInit() == false)
+        {
+            GitCommand.Init();
+        }
+
+        //選択されているメモファイルとメタファイルをインデックスに追加
+        string memoFileDirectoryPath = Environment.CurrentDirectory + "\\Assets\\SonicCustom\\Editor\\Resources\\TextMemo\\" + occupation + "\\";
+        string memofileName = editText.name;
+        string extension = ".txt";
+        string selectMemoFilePath = memoFileDirectoryPath + memofileName + extension;
+        GitCommand.Add(selectMemoFilePath);
+        extension += ".meta";
+        selectMemoFilePath = memoFileDirectoryPath + memofileName + extension;
+        GitCommand.Add(selectMemoFilePath);
+
+        //インデックスに追加されたファイルをコミット
+        string commitMessage = "[Update] " + memofileName + ".txtの更新";
+        GitCommand.Commit(commitMessage);
+
+        //現在のブランチにプッシュ
+        GitCommand.Push();
+
         return false;
     }
 
